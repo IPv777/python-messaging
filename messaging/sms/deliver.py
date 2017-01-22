@@ -21,6 +21,13 @@ class SmsDeliver(SmsBase):
         self.mtype = None
         self.sr = None
 
+        #2bit SC to MS Message type
+        self.tp_mti = None
+        #Boolean, indicate if there is more message to send
+        self.tp_mms = None
+        #Boolean, indicate if udh presend
+        self.tp_udhi = None
+
         self.pdu = pdu
 
     @property
@@ -36,7 +43,7 @@ class SmsDeliver(SmsBase):
             'dcs': self.dcs,
             'csca': self.csca,
             'number': self.number,
-            'type': self.type,
+            'type': self.tp_mti,
             'date': self.date,
             'fmt': self.fmt,
             'sr': self.sr,
@@ -79,23 +86,36 @@ class SmsDeliver(SmsBase):
         else:
             self.csca = None
 
-        # 1 byte(octet) == 2 char
-        # Message type TP-MTI bits 0,1
-        # More messages to send/deliver bit 2
-        # Status report request indicated bit 5
-        # User Data Header Indicator bit 6
-        # Reply path set bit 7
+        # 1 byte(octet) == 2 HEX char
+        # TP_MTI, Message type bits 0,1
+        # TP_MMS, More messages to send/deliver bit 2
+        # TP_SRI, Status report request indicated bit 5
+        # TP_UHDI, User Data Header Indicator bit 6
+        # TP_RP, Reply path set bit 7
         try:
             self.mtype = data.pop(0)
         except TypeError:
             raise ValueError("Decoding this type of SMS is not supported yet")
 
-        mtype = self.mtype & 0x03
+        #0 0    SC->MS  SMS-DELIVER
+        #0 1    SC->MS  SMS-SUBMIT-REPORT ( Not supported yet )
+        #1 0    SC->MS  SMS-STATUS-REPORT
+        #1 1    Any     Reserved
+        self.tp_mti = self.mtype & 0b00000011
 
-        if mtype == 0x02:
+        #TP-More-Messages-to-Send (TP-MMS) in SMS-DELIVER (0 = more messages)
+        self.tp_mms = False if self.mtype & 0b00000100 else True
+
+        #Indicate if message has UDH
+        self.tp_udhi = True if self.mtype & 0b01000000 else False
+
+        if self.tp_mti == 0b11:
+            raise ValueError("Decoding this type of SMS is not supported")
+
+        if self.tp_mti == 0b10:
             return self._decode_status_report_pdu(data)
 
-        if mtype == 0x01:
+        if self.tp_mti == 0b01:
             raise ValueError("Cannot decode a SmsSubmitReport message yet")
 
         sndlen = data.pop(0)
@@ -160,7 +180,7 @@ class SmsDeliver(SmsBase):
         # check for header
         headlen = ud_len = 0
 
-        if self.mtype & 0x40:  # UDHI present
+        if self.tp_udhi:  # UDHI present
             ud_len = data.pop(0)
             self.udh = UserDataHeader.from_bytes(data[:ud_len])
             headlen = (ud_len + 1) * 8
@@ -183,7 +203,7 @@ class SmsDeliver(SmsBase):
         elif self.fmt == 0x08:
             data = data[ud_len:].tolist()
             _bytes = [int("%02X%02X" % (data[i], data[i + 1]), 16)
-                            for i in range(0, len(data), 2)]
+                      for i in range(0, len(data), 2)]
             self.text = u''.join(list(map(unichr, _bytes)))
 
     pdu = property(lambda self: self._pdu, _set_pdu)
@@ -253,7 +273,6 @@ class SmsDeliver(SmsBase):
         self.number = sender
         self.text = "|".join(msg_l)
         self.fmt = 0x08   # UCS2
-        self.type = 0x03  # status report
 
         self.sr = {
             'recipient': recipient,
@@ -261,4 +280,3 @@ class SmsDeliver(SmsBase):
             'dt': dt,
             'status': _status
         }
-
