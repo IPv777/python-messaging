@@ -223,26 +223,57 @@ class SmsDeliver(SmsBase):
 
         data = data[sndlen:]
 
-        date = swap(list(encode_bytes(data[:7])))
-        try:
-            scts_str = "%s%s/%s%s/%s%s %s%s:%s%s:%s%s" % tuple(date[0:12])
-            self.date = datetime.strptime(scts_str, "%y/%m/%d %H:%M:%S")
-        except (ValueError, TypeError):
-            scts_str = ''
-            debug('Could not decode scts: %s' % date)
+        datestr = ''
+        # Get date stamp (sender's local time)
+        date = list(encode_bytes(data[:6]))
+        for n in range(1, len(date), 2):
+            date[n - 1], date[n] = date[n], date[n - 1]
 
-        data = data[7:]
+        data = data[6:]
 
-        date = swap(list(encode_bytes(data[:7])))
-        try:
-            dt_str = "%s%s/%s%s/%s%s %s%s:%s%s:%s%s" % tuple(date[0:12])
-            dt = datetime.strptime(dt_str, "%y/%m/%d %H:%M:%S")
-        except (ValueError, TypeError):
-            dt_str = ''
-            dt = None
-            debug('Could not decode date: %s' % date)
+        # Get sender's offset from GMT (TS 23.040 TP-SCTS)
+        tz = data.pop(0)
 
-        data = data[7:]
+        offset = ((tz & 0x07) * 10 + ((tz & 0xf0) >> 4)) * 15
+        if (tz & 0x08):
+            offset = offset * -1
+
+        #  02/08/26 19:37:41
+        datestr = "%s%s/%s%s/%s%s %s%s:%s%s:%s%s" % tuple(date)
+        outputfmt = '%y/%m/%d %H:%M:%S'
+
+        sndlocaltime = datetime.strptime(datestr, outputfmt)
+        sndoffset = timedelta(minutes=offset)
+        # date as UTC
+        self.date = sndlocaltime - sndoffset
+        scts_str = datestr
+
+
+        datestr = ''
+        # Get date stamp (sender's local time)
+        date = list(encode_bytes(data[:6]))
+        for n in range(1, len(date), 2):
+            date[n - 1], date[n] = date[n], date[n - 1]
+
+        data = data[6:]
+
+        # Get sender's offset from GMT (TS 23.040 TP-SCTS)
+        tz = data.pop(0)
+
+        offset = ((tz & 0x07) * 10 + ((tz & 0xf0) >> 4)) * 15
+        if (tz & 0x08):
+            offset = offset * -1
+
+        #  02/08/26 19:37:41
+        datestr = "%s%s/%s%s/%s%s %s%s:%s%s:%s%s" % tuple(date)
+        outputfmt = '%y/%m/%d %H:%M:%S'
+
+        sndlocaltime = datetime.strptime(datestr, outputfmt)
+        sndoffset = timedelta(minutes=offset)
+        # date as UTC
+        dt = sndlocaltime - sndoffset
+        dt_str = datestr
+
 
         msg_l = [recipient, scts_str]
         try:

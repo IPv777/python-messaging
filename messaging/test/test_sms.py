@@ -399,7 +399,7 @@ class TestSmsDeliver(unittest.TestCase):
     def test_decode_sms_confirmation(self):
         pdu = "07914306073011F006270B913426565711F7012081111345400120811174054043"
         csca = "+34607003110"
-        date = datetime(2010, 2, 18, 11, 31, 54)
+        date = datetime(2010, 2, 18, 10, 31, 54)
         number = "SR-UNKNOWN"
         # XXX: the number should be +344626575117, is the prefix flipped ?
         text = "+43626575117|10/02/18 11:31:54|"
@@ -443,8 +443,8 @@ class TestSmsDeliver(unittest.TestCase):
         pdu = "0791538375000075061805810531F1019082416500400190824165004000"
         sr = {
             'status': 0,
-            'scts': datetime(2010, 9, 28, 14, 56),
-            'dt': datetime(2010, 9, 28, 14, 56),
+            'scts': datetime(2010, 9, 28, 13, 56),
+            'dt': datetime(2010, 9, 28, 13, 56),
             'recipient': '50131'
         }
 
@@ -458,8 +458,8 @@ class TestSmsDeliver(unittest.TestCase):
         pdu = "00060505810531F1010150610000400101506100004000"
         sr = {
             'status': 0,
-            'scts': datetime(2010, 10, 5, 16, 0),
-            'dt': datetime(2010, 10, 5, 16, 0),
+            'scts': datetime(2010, 10, 5, 15, 0),
+            'dt': datetime(2010, 10, 5, 15, 0),
             'recipient': '50131'
         }
 
