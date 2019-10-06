@@ -65,7 +65,7 @@ def to_bytes(s):
 def debug(s):
     # set this to True if you want to poke at PDU encoding/decoding
     if False:
-        print s
+        print(s)
 
 
 def swap(s):
